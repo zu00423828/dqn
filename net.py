@@ -1,3 +1,5 @@
+from torch import nn
+from torch.nn import functional as F
 class Net(nn.Module):
     def __init__(self, n_states, n_actions, n_hidden):
         super(Net, self).__init__()

@@ -1,3 +1,4 @@
+import gym
 env = gym.make('CartPole-v0')
 from dqn import DQN
 # Environment parameters
@@ -28,7 +29,11 @@ for i_episode in range(n_episodes):
         # 選擇 action
         action = dqn.choose_action(state)
         next_state, reward, done, info = env.step(action)
-
+        # # 修改 reward，加快訓練
+        # x, v, theta, omega = next_state
+        # r1 = (env.x_threshold - abs(x)) / env.x_threshold - 0.8 # 小車離中間越近越好
+        # r2 = (env.theta_threshold_radians - abs(theta)) / env.theta_threshold_radians - 0.5 # 柱子越正越好
+        # reward = r1 + r2
         # 儲存 experience
         dqn.store_transition(state, action, reward, next_state)
 
