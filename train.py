@@ -52,7 +52,7 @@ if __name__ == '__main__':
     n_actions = 4
     n_states = 5
     n_hidden = 50
-    batch_size = 1
+    batch_size = 100
     lr = 0.0001
     max_epoch = 4000
     use_cuda=False
