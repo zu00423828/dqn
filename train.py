@@ -1,56 +1,66 @@
-import gym
-env = gym.make('CartPole-v0')
-from dqn import DQN
-# Environment parameters
-n_actions = env.action_space.n
-n_states = env.observation_space.shape[0]
+from model.net import Net
+import torch
+from torch import nn
+from torch import optim
+from data.sim_env import ENV
+import numpy as np
+from torch.utils.data import DataLoader
+import os
+from tqdm import tqdm
+from torch.utils.tensorboard import SummaryWriter
+def save_model():
+    torch.save(net.state_dict(),'checkpoint/model.pth')
+    torch.save(optimizer.state_dict(),'checkpoint/optim.pth')
+def load_model():
+    net.load_state_dict(torch.load('checkpoint/model.pth'))
+    optimizer.load_state_dict(torch.load('checkpoint/optim.pth'))
+def train(use_checkpoint=False,use_cuda=False):
+    
+    with SummaryWriter() as writer:
+        for epoch in range(max_epoch):
+            net.train()
+            if use_checkpoint:
+                load_model()
+            optimizer.zero_grad()
+            pro_bar=tqdm(dl,desc=f'epoch:{epoch+1}')
+            for step,(x,y) in enumerate(pro_bar):
+                now_step=epoch*len(dl)+step
+                x=x.to(device)
+                pre=net(x)
+                loss=loss_func(pre,y)
+                loss.backward()
+                optimizer.zero_grad()
+                if step%100==0:
+                    writer.add_scalar('loss',loss.item(),now_step)
+            eval() 
+            save_model()
 
-# Hyper parameters
-n_hidden = 50
-batch_size = 32
-lr = 0.01                 # learning rate
-epsilon = 0.1             # epsilon-greedy
-gamma = 0.9               # reward discount factor
-target_replace_iter = 100 # target network 更新間隔
-memory_capacity = 2000
-n_episodes = 4000
+def eval():
+    net.eval()
+    with torch.no_grad():
+        origin=np.random.rand(5).astype(np.float32)
+        x=origin.copy()
+        y=np.zeros((4))
+        label=np.argmin(abs(np.delete(origin,2)-origin[2]),axis=0)
+        y[label]=1
+        x_t=torch.from_numpy(x).unsqueeze(0)
+        pre=net(x_t)
+        print(x,y.argmax(),pre.argmax(1))
+    
+    
+if __name__ == '__main__':
+    n_actions = 4
+    n_states = 5
+    n_hidden = 50
+    batch_size = 1
+    lr = 0.0001
+    max_epoch = 4000
+    use_cuda=False
+    dataset=ENV(4,5)
 
-# 建立 DQN
-dqn = DQN(n_states, n_actions, n_hidden, batch_size, lr, epsilon, gamma, target_replace_iter, memory_capacity)
-
-# 學習
-for i_episode in range(n_episodes):
-    t = 0
-    rewards = 0
-    state = env.reset()
-    while True:
-        env.render()
-
-        # 選擇 action
-        action = dqn.choose_action(state)
-        next_state, reward, done, info = env.step(action)
-        # # 修改 reward，加快訓練
-        # x, v, theta, omega = next_state
-        # r1 = (env.x_threshold - abs(x)) / env.x_threshold - 0.8 # 小車離中間越近越好
-        # r2 = (env.theta_threshold_radians - abs(theta)) / env.theta_threshold_radians - 0.5 # 柱子越正越好
-        # reward = r1 + r2
-        # 儲存 experience
-        dqn.store_transition(state, action, reward, next_state)
-
-        # 累積 reward
-        rewards += reward
-
-        # 有足夠 experience 後進行訓練
-        if dqn.memory_counter > memory_capacity:
-            dqn.learn()
-
-        # 進入下一 state
-        state = next_state
-
-        if done:
-            print('Episode finished after {} timesteps, total rewards {}'.format(t+1, rewards))
-            break
-
-        t += 1
-
-env.close()
+    device=torch.device('cuda' if use_cuda else 'cpu')
+    dl=DataLoader(dataset,batch_size=batch_size,drop_last=True,pin_memory=use_cuda)
+    net=Net(5,4,60).to(device)
+    optimizer = optim.Adam(net.parameters(), lr=lr)
+    loss_func = nn.BCELoss().to(device)
+    train() 
