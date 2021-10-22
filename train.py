@@ -29,6 +29,7 @@ def train(use_checkpoint=False,use_cuda=False):
                 pre=net(x)
                 loss=loss_func(pre,y)
                 loss.backward()
+                optimizer.step()
                 optimizer.zero_grad()
                 if step%100==0:
                     writer.add_scalar('loss',loss.item(),now_step)
